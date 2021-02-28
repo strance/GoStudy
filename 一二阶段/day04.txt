@@ -1,0 +1,194 @@
+
+ 定义channel：make（chan 类型，容量）
+
+	ch :=  make （chan string）:
+
+	写端：	 ch <- "hehe"	。写端写数据，读端不在读。写端阻塞
+
+	读端：	str := <- ch	。读端读数据， 同时写端不在写，读端阻塞。
+
+channel同步，数据传递：
+
+	写端：	 ch <- "hehe"	。写端写数据，读端不在读。阻塞
+
+	读端：	str := <- ch	。读端读数据， 同时写端不在写，读端阻塞。
+
+	len(ch) ： channel 中剩余未读取数据个数。 cap（ch）： 通道的容量。
+
+无缓冲channel： —— 同步通信
+
+	创建： ch := make(chan int)  或 make(chan int, 0)
+
+	通道容量为0， len = 0 。 不能存储数据。
+
+	channel 应用于 两个go程中。	一个读，另一个写。  
+
+	具备同步的能力。  读、写同步。（打电话）
+
+有缓冲channel：—— 异步通信
+
+	创建： ch := make(chan int, 5)
+
+	通道容量为非0。len(ch) ： channel 中剩余未读取数据个数。 cap（ch）： 通道的容量。
+
+	channel 应用于 两个go程中。一个读，另一个写。  
+
+	缓冲区可以进行数据存储。存储至 容量上限，阻塞。 具备 异步 能力，不需同时操作channel缓冲区（发短信）
+
+关闭channel： 无、有缓冲
+	
+	确定不再相对端发送、接收数据。关闭channel。 使用 close(ch) 关闭channel
+	
+	对端可以判断 channel 是否关闭：
+
+		if num， ok := <-ch ;  ok == true {
+
+		如果对端已经关闭， ok --> false . num无数据。
+
+		如果对端没有关闭， ok --> true . num保存读到的数据。
+
+	可以使用 range 替代 ok：
+
+		for num := range ch {		// ch 不能替换为 <-ch
+		}
+
+	总结：	1. 数据不发送完，不应该关闭。
+
+		2. 已经关闭的channel， 不能再向其写数据。 报错：panic: send on closed channel
+
+		3. 写端已经关闭channel， 可以从中读取数据。
+
+					读无缓冲channel： 读到0 。 —— 说明：写端关闭。
+
+					读有缓冲channel： 如果缓冲区内有数据，先读数据。读完数据后，可以继续读。 读到 0
+
+单向channel：
+
+	默认的channel 是双向的。 var ch chan int		ch = make(chan int)
+
+	单向写channel:	var  sendCh chan <-	 int	sendCh = make(chan <- int)	不能读操作
+
+	单向读channel:	var  recvCh  <- chan int	recvCh = make(<-chan int)
+
+	转换：
+		1. 双向channel 可以 隐式转换为 任意一种单向channel 
+
+			sendCh  = ch
+
+		2. 单向 channel 不能转换为 双向 channel
+
+			ch = sendCh/recvCh   error！！！
+
+	传参： 传【引用】
+
+生产者消费者模型：
+
+	生产者： 发送数据端
+
+	消费者： 接收数据端
+
+	缓冲区： 	1. 解耦 （ 降低生产者 和 消费者之间 耦合度 ）
+
+		2. 并发 （生产者消费者数量不对等时，能保持正常通信）
+
+		3. 缓存 （生产者和消费者 数据处理速度不一致时， 暂存数据）
+
+	模型代码实现。---- 模拟订单代码实现。 参阅讲义
+
+定时器：
+
+	Timer：创建定时器，指定定时时长，定时到达后。 系统会自动向定时器的成员 C 写 系统当前时间。 （对 chan 的写操作）
+
+type Timer struct {
+   C <-chan Time
+   r runtimeTimer
+}
+	sleep()
+	NewTimer
+	After
+
+	读取 Timer.C 得到 定时后的系统时间。并且完成一次  chan 的 读操作。
+
+	time.After() 定时： 	
+
+		指定定时时长，定时到达后。 系统会自动向定时器的成员 写入 系统当前时间。
+
+		返回 可读 chan 。 读取，可获得系统写入时间。
+
+	总结： Sleep、NewTimer、After —— time包
+
+	定时器的 停止、重置：
+
+		1） 创建定时器 myTimer := time.NewTimer(2 * time.Second)
+		
+		2)   停止： myTimer.Stop	—— 将定时器归零。    <-myTimer.C 会阻塞
+
+		3） 重置：myTimer.Reset(time.Second)
+
+周期定时：
+
+        type Ticker struct {
+	C <-chan Time 
+	r runtimeTimer
+        }	
+	1） 创建周期定时器 myTicker := time.NewTicker(time.Second)
+
+		定时时长到达后，系统会自动向 Ticker 的 C 中写入 系统当前时间。 
+
+		并且，每隔一个定时时长后，循环写入 系统当前时间。 
+	
+	2） 在 子 go 程中循环读取 C。获取系统写入的时间。 
+
+select：
+	作用： 用来监听 channel 上的数据流动方向。 读？写？
+
+	用法： 参考 switch case 语句。 但！case后面必须是IO操作，不可以任意写判别表达式。
+	
+	注意事项：
+		1. 监听的case中，没有满足监听条件，阻塞。
+
+		2. 监听的case中，有多个满足监听条件，任选一个执行。
+
+		3. 可以使用default来处理所有case都不满足监听条件的状况。 通常不用（会产生忙轮询）
+
+		4. select 自身不带有循环机制，需借助外层 for 来循环监听
+
+		5. break 跳出 select中的一个case选项 。类似于switch中的用法。
+
+select实现fibonacci数列：
+
+	1  1  2  3  5  8  13  21  34  55   89 
+	x = y
+	y = x+y	
+
+	
+
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+

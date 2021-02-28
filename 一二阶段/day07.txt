@@ -1,0 +1,156 @@
+
+TCP状态转换图：
+
+	主动发起连接请求端： CLOSED —— 完成三次握手 —— ESTABLISEHED（数据通信状态）—— Dial()函数返回
+
+	被动发起连接请求端： CLOSED —— 调用Accept()函数 —— LISTEN —— 完成三次握手 —— ESTABLISEHED （数据通信状态）—— Accept()函数返回
+
+		数据传递期间 —— ESTABLISEHED （数据通信状态）
+
+	主动关闭连接请求端：
+
+		ESTABLISEHED —— FIN_WAIT_2 (半关闭）——  TIME_WAIT —— 2MSL —— 确认最后一个ACK被对端成功接收。—— CLOSE
+
+		半关闭、TIME_WAIT、2MSL ——只会出现在 “主动关闭连接请求端”
+
+	被动关闭连接请求端：ESTABLISEHED —— CLOSE
+
+
+查看状态命令：
+
+	windows：netstat -an | findstr 8001（端口号）
+
+	Linux： netstat -apn | grep 8001
+
+=========================================================================
+
+TCP通信：
+	面向连接的，可靠的数据包传输。
+
+UDP通信：
+	无连接的，不可靠的报文传递。
+
+UDP服务器：
+
+	1.  创建 server端地址结构（IP + port） net.ResolveUDPAddr()
+
+	2.  创建用于通信的socket， 绑定地址结构	udpConn = net.ListenUDP(“udp”， server端地址结构)
+
+	3.  defer udpConn.Close()
+
+	4.  读取客户端发送数据	ReadFromUDP(buf)   返回： n， cltAddr(客户端的IP+port) ， err
+
+	5.  写数据给 客户端		WriteToUDP("待写数据"，cltAddr)
+
+UDP客户端：
+
+	参考 TCP 客户端。
+
+	net.Dial("udp", server 的IP+port)
+
+
+UDP服务器并发：
+
+	1. UDP默认支持客户端并发访问
+
+	2. 使用 go 程 将 服务器处理 ReadFromUDP 和  WriteToUDP操作分开。提高并发效率。
+
+TCP 和 UDP 比较：
+
+	优点：	TCP：					UDP：
+			稳定、安全、有序。				效率高、开销小。开发复杂度低。
+
+	缺点：	TCP：					UDP：	
+			效率低、开销大。开发复杂度高。		稳定性差、安全低、无序。	
+
+	使用场景：
+		TCP：对数据传输安全性、稳定性要求较高的场合。 网络文件传输。下载、上传。
+
+		UDP：对数据实时传输要求较高的场合。视频直播、在线电话会议。游戏
+
+网络文件传输：
+
+	命令行参数： 在main函数启动时，向整个程序传参。
+
+		语法： go run xxx.go	  argv1 argv2  argv3  argv4
+
+			xxx.go:  第 0 个参数。
+			argv1 ：第 1 个参数。
+			argv2 ：第 2个参数。	
+			argv3 ：第 3 个参数。
+			argv4 ：第 4 个参数。
+
+		使用： list := os.Args
+
+		          参数3 = list[3]
+
+	获取文件属性：
+
+		fileInfo：os.stat(文件访问绝对路径)
+
+		fileInfo 接口，两个接口。
+
+			 Name() 获取文件名。
+
+			 Size() 获取文件大小。
+
+文件传输——发送端（客户端）：
+
+	1. 提示用户使用命令行参数输入文件名。接收文件名 filepath（含访问路径）
+
+	2. 使用 os.Stat(）获取文件属性，得到纯文件名 fileName（去除访问路径）
+
+	3. 主动发起连接服务器请求，结束时关闭连接。
+
+	4. 发送文件名到接收端 conn.Write()
+
+	5. 读取接收端回发的确认数据 conn.Read()
+
+	6. 判断是否为“ok”。如果是，封装函数 SendFile() 发送文件内容。传参 filePath 和 conn
+
+	7. 只读 Open 文件, 结束时Close文件
+
+	8. 循环读本地文件，读到 EOF，读取完毕。
+
+	9. 将读到的内容原封不动 conn.Write 给接收端（服务器）
+
+文件传输——接收端（服务器）：
+
+	1. 创建监听 listener，程序结束时关闭。
+
+	2. 阻塞等待客户端连接 conn，程序结束时关闭conn。
+
+	3. 读取客户端发送文件名。保存 fileName。
+
+	4. 回发“ok”。
+
+	5. 封装函数 RecvFile 接收客户端发送的文件内容。传参 fileName 和 conn
+
+	6. 按文件名 Create 文件，结束时 Close
+
+	7. 循环 Read 发送端网络文件内容，当读到 0 说明文件读取完毕。
+
+	8. 将读到的内容原封不动Write到创建的文件中
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
