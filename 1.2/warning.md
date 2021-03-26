@@ -21,6 +21,7 @@ return err
 ```
 
 - return and defer
+```go
 func f1() int {
 	x := 5
 	defer func() {
@@ -65,3 +66,4 @@ func f4() (n int) {
 	3. 执行defer语句，对defer里的n进行加1操作得到1。
 	4. 执行RET指令，返回n=5。
  */
+```
